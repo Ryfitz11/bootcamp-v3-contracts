@@ -86,5 +86,40 @@ describe("Token", () => {
     })
     })
   })
+  describe("Approving tokens", () =>{
+    const AMOUNT = tokens(100)
+
+    describe("Success", () =>{
+      it("It allocates an allowance for detecated token spending", async () => {
+      const { token, deployer, exchange } = await loadFixture(deployTokenFixture)
+
+      const transaction = await token.connect(deployer).approve(exchange.address, AMOUNT)
+      await transaction.wait()
+
+      expect(await token.allowance(deployer.address, exchange.address)).to.equal(AMOUNT)
+
+    })
+    it("emits an approval event", async () => {
+            const { token, deployer, exchange } = await loadFixture(deployTokenFixture)
+
+      const transaction = await token.connect(deployer).approve(exchange.address, AMOUNT)
+      await transaction.wait()
+      // console.log(receipt.logs[0].args)
+      
+      await expect(transaction).to.emit(token, "Approval").withArgs(deployer.address, exchange.address, AMOUNT)
+    })
+    })
+    describe("Failure", () =>{
+      it("rejects invalid spender", async () =>{
+      const { token, deployer } = await loadFixture(deployTokenFixture)
+
+      const INVALID_ADDRESS = "0x0000000000000000000000000000000000000000"
+
+      const ERROR = "Token: Spender is address 0"
+
+      await expect(token.connect(deployer).approve(INVALID_ADDRESS, AMOUNT)).to.be.revertedWith(ERROR)
+    })
+    })
+  })
   
 })
