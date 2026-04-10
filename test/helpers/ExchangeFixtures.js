@@ -2,17 +2,47 @@ const {ethers} = require ("hardhat")
 
 async function deployExchangeFixture() {
     const Exchange = await ethers.getContractFactory("Exchange")
+    const Token = await ethers.getContractFactory("Token")
+
+    token0 = await Token.deploy("Dapp Uni", "Dapp", "1000000")
+    token1 = await Token.deploy("Mock Dai", "mDAI", "1000000")
+
 
     const accounts = await ethers.getSigners()
     const deployer = accounts[0]
     const feeAccount = accounts[1]
+    const user1 = accounts[2]
+    const user2 = accounts[3]
+
+    const AMOUNT = ethers.parseUnits("100", 18)
+
+    await (await token0.connect(deployer).transfer(user1.address, AMOUNT)).wait()
+    await (await token1.connect(deployer).transfer(user2.address, AMOUNT)).wait()
+
 
     const FEE_PERCENT = 10
 
     const exchange = await Exchange.deploy(feeAccount, FEE_PERCENT)
 
-    return {exchange, accounts: {deployer, feeAccount}}
+    return {tokens: {token0, token1}, exchange, accounts: {deployer, feeAccount, user1, user2}}
 
 }
 
-module.exports = { deployExchangeFixture }
+async function depositExchangeFixture() {
+  const {tokens, exchange, accounts} = await deployExchangeFixture()
+
+  const AMOUNT = ethers.parseUnits("100", 18)
+
+    await (await tokens.token0.connect(accounts.user1).approve(await exchange.getAddress(), AMOUNT)).wait()
+
+    const transaction = await exchange.connect(accounts.user1).depositToken(await tokens.token0.getAddress(), AMOUNT)
+    await transaction.wait()
+
+    await (await tokens.token1.connect(accounts.user2).approve(await exchange.getAddress(), AMOUNT)).wait()
+
+    await (await exchange.connect(accounts.user2).depositToken(await tokens.token1.getAddress(), AMOUNT)).wait()
+
+    return { tokens, exchange, accounts, transaction }
+}
+
+module.exports = { deployExchangeFixture, depositExchangeFixture }
